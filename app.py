@@ -111,18 +111,18 @@ with l_col1:
     # Prepara cópia limpa substituindo nulos por strings vazias para o editor de dados
     df_ed = df.copy().fillna("")
     df_ed.insert(0, "Excluir", False)
-    
-    # CONFIGURAÇÃO DE COLUNAS ULTRA ESTRITA: Remove os badges verdes do "None"
-    configuracao_colunas = {
-        "Excluir": st.column_config.CheckboxColumn(required=True),
-        "Tarefa": st.column_config.TextColumn(width="large"),
-        "Início": st.column_config.TextColumn(alignment="center"),
-        "Conclusão": st.column_config.TextColumn(alignment="center"),
-        "Aprovador (A)": st.column_config.TextColumn(),
-        "Responsável (R)": st.column_config.TextColumn(),
-        "Consultados (C)": st.column_config.TextColumn(),
-        "Informados (I)": st.column_config.TextColumn()
-    }
+    # A configuração que força o Streamlit a exibir texto limpo e ignorar os balões de None
+configuracao_colunas = {
+    "Excluir": st.column_config.CheckboxColumn(required=True),
+    "Tarefa": st.column_config.TextColumn(width="large", default=""),
+    "Início": st.column_config.TextColumn(alignment="center", default=""),
+    "Conclusão": st.column_config.TextColumn(alignment="center", default=""),
+    "Aprovador (A)": st.column_config.TextColumn(default=""),
+    "Responsável (R)": st.column_config.TextColumn(default=""),
+    "Consultados (C)": st.column_config.TextColumn(default=""),
+    "Informados (I)": st.column_config.TextColumn(default="")
+}
+
     
     ed_res = st.data_editor(
         df_ed, 
