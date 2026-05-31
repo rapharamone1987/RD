@@ -4,35 +4,37 @@ import plotly.express as px
 import io
 from datetime import datetime, timedelta
 from fpdf import FPDF
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.formatting.rule import CellIsRule
 
 # 1. Configuração da página com identidade visual em tons de verde
 st.set_page_config(page_title="Matriz GUT + RACI + Cronograma", layout="wide")
 
 st.title("📊 Gestão Estratégica: GUT + RACI + Cronograma")
-st.markdown("Priorize tarefas, atribua responsabilidades e gira os prazos de execução num único lugar.")
+st.markdown("Priorize tarefas, atribua responsabilidades e gerencie os prazos de execução em um único lugar.")
 
-# 2. Inicialização do estado da sessão (Dados iniciais de simulação)
+# 2. Inicialização do estado da sessão (Dados iniciais no padrão PT-BR)
 if "dados_estrategicos" not in st.session_state:
     hoje = datetime.today()
     st.session_state.dados_estrategicos = pd.DataFrame([
         {
             "Tarefa": "Realizar o inventário anual de bens móveis e verificação de plaquetas patrimoniais", 
             "G": 4, "U": 4, "T": 3,
-            "Aprovador (A)": "Diretor de Administração", "Responsável (R)": "Equipa de Património",
+            "Aprovador (A)": "Diretor de Administração", "Responsável (R)": "Equipe de Patrimônio",
             "Consultados (C)": "Contabilidade", "Informados (I)": "Auditoria Interna",
             "Início": hoje.strftime("%Y-%m-%d"), "Conclusão": (hoje + timedelta(days=15)).strftime("%Y-%m-%d")
         },
         {
             "Tarefa": "Corrigir inconsistências em relatórios de depreciação contábil do encerramento do exercício", 
             "G": 5, "U": 3, "T": 4,
-            "Aprovador (A)": "Chefe de Finanças", "Responsável (R)": "Contabilista Líder",
+            "Aprovador (A)": "Chefe de Finanças", "Responsável (R)": "Contador Líder",
             "Consultados (C)": "TI (Suporte)", "Informados (I)": "Diretoria Executiva",
             "Início": hoje.strftime("%Y-%m-%d"), "Conclusão": (hoje + timedelta(days=7)).strftime("%Y-%m-%d")
         }
     ])
 
-# 3. Formulário de Cadastro
-with st.form("novo_problema_form", clear_on_submit=True):
+# 3. Formulário de Cadastro (PT-BR)
+with st.form("nova_tarefa_form", clear_on_submit=True):
     st.subheader("🆕 Cadastrar Nova Tarefa Estratégica")
     
     col1, col2, col3, col4 = st.columns([4, 2, 2, 2])
@@ -50,7 +52,7 @@ with st.form("novo_problema_form", clear_on_submit=True):
     with raci_col1:
         aprovador = st.text_input("Aprovador (A):", placeholder="Ex: Diretor da Área")
     with raci_col2:
-        responsavel = st.text_input("Responsável (R):", placeholder="Ex: João / Equipa X")
+        responsavel = st.text_input("Responsável (R):", placeholder="Ex: João / Equipe X")
     with raci_col3:
         consultados = st.text_input("Consultados (C):", placeholder="Ex: Setor de TI")
     with raci_col4:
@@ -80,7 +82,7 @@ if submit and descricao:
         st.session_state.dados_estrategicos = pd.concat([st.session_state.dados_estrategicos, novo_dado], ignore_index=True)
         st.rerun()
 
-# 5. Processamento Geral dos Dados
+# 5. Processamento e Ordenação dos Dados
 df = st.session_state.dados_estrategicos.copy()
 df["Score"] = df["G"] * df["U"] * df["T"]
 df = df.sort_values(by="Score", ascending=False).reset_index(drop=True)
@@ -110,30 +112,28 @@ if not df.empty:
         coloraxis_colorbar=dict(title="Score GUT"), margin=dict(l=20, r=20, t=40, b=20), height=350
     )
 
-# 7. Classe Customizada para o PDF com Elementos Institucionais (Molduras, Faixas e Rodapés)
+# 7. Classe do PDF Customizada (Bordas Máster, Cabeçalhos e Rodapés em PT-BR)
 class PDFExecutivo(FPDF):
     def header(self):
-        # 1. Desenha a Borda Externa de Margem em toda a folha (A4 Paisagem tem 297x210mm)
+        # Moldura estrutural externa nas margens da folha
         self.set_draw_color(180, 180, 180)
         self.set_line_width(0.3)
         self.rect(10, 10, 277, 190, "D")
         
-        # 2. Desenha a Faixa Verde do Cabeçalho
-        self.set_fill_color(27, 94, 32) # Verde Escuro
+        # Faixa Verde Máster do Topo
+        self.set_fill_color(27, 94, 32) 
         self.rect(12, 12, 273, 14, "F")
         
-        # Texto dentro da Faixa Verde
         self.set_xy(15, 14)
         self.set_font("Arial", "B", 14)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 10, "PLANO DE ACCAO E GOVERNACAO ESTRATEGICA", align="L")
+        self.cell(0, 10, "PLANO DE AÇÃO E GOVERNANÇA ESTRATÉGICA", align="L")
         
     def footer(self):
-        # 3. Desenha a Faixa Verde Fina do Rodapé
-        self.set_fill_color(44, 160, 90) # Verde Médio
+        # Detalhe em verde no rodapé
+        self.set_fill_color(44, 160, 90) 
         self.rect(12, 191, 273, 1.5, "F")
         
-        # Texto e Paginação do Rodapé
         self.set_y(193)
         self.set_x(15)
         self.set_font("Arial", "I", 8)
@@ -142,13 +142,13 @@ class PDFExecutivo(FPDF):
         self.cell(100, 5, f"Documento Institucional - Emitido em: {data_hoje}", align="L")
         
         self.set_x(240)
-        self.cell(40, 5, f"Pagina {self.page_no()}", align="R")
+        self.cell(40, 5, f"Página {self.page_no()}", align="R")
 
 # 8. Renderização do Painel Visual do Streamlit
 layout_col1, layout_col2 = st.columns([6, 4])
 
 with layout_col1:
-    st.subheader("📋 Painel de Governação e Prazos")
+    st.subheader("📋 Painel de Governança e Prazos")
     
     df_editor = df.copy()
     df_editor.insert(0, "Excluir", False)
@@ -164,18 +164,62 @@ with layout_col1:
         st.session_state.dados_estrategicos = st.session_state.dados_estrategicos[st.session_state.dados_estrategicos["Tarefa"].isin(tarefas_manter)]
         st.rerun()
 
-    # Botões de Exportação
     if not df.empty:
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
+            # Exportação Avançada para o Excel (Verde Corporativo + Zebra + Alertas)
             buffer_xlsx = io.BytesIO()
             with pd.ExcelWriter(buffer_xlsx, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False, sheet_name='Plano de Trabalho')
                 worksheet = writer.sheets['Plano de Trabalho']
+                
+                fonte_cabecalho = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+                preenchimento_cabecalho = PatternFill(start_color='1B5E20', end_color='1B5E20', fill_type='solid') 
+                preenchimento_zebra = PatternFill(start_color='F4FAF5', end_color='F4FAF5', fill_type='solid')     
+                
+                alinhamento_centro = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                alinhamento_esquerda = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                
+                borda_fina_estilo = Side(border_style="thin", color="D3D3D3")
+                borda_grade = Border(left=borda_fina_estilo, right=borda_fina_estilo, top=borda_fina_estilo, bottom=borda_fina_estilo)
+                
+                for col_num in range(1, len(df.columns) + 1):
+                    celula = worksheet.cell(row=1, column=col_num)
+                    celula.font = fonte_cabecalho
+                    celula.fill = preenchimento_cabecalho
+                    celula.alignment = alinhamento_centro
+                    celula.border = borda_grade
+                
+                for row_num in range(2, len(df) + 2):
+                    worksheet.row_dimensions[row_num].height = 20
+                    for col_num in range(1, len(df.columns) + 1):
+                        celula = worksheet.cell(row=row_num, column=col_num)
+                        celula.font = Font(name='Calibri', size=11)
+                        celula.border = borda_grade
+                        
+                        if col_num in [2, 3, 4, 5, 6, 7]:
+                            celula.alignment = alinhamento_centro
+                        else:
+                            celula.alignment = alinhamento_esquerda
+                            
+                        if row_num % 2 == 1:
+                            celula.fill = preenchimento_zebra
+                
+                cor_alerta = PatternFill(start_color='FFEBEE', end_color='FFEBEE', fill_type='solid')
+                fonte_alerta = Font(name='Calibri', size=11, bold=True, color='C62828')
+                regra_alerta = CellIsRule(operator='greaterThanOrEqual', formula=['60'], fill=cor_alerta, font=fonte_alerta)
+                worksheet.conditional_formatting.add(f'E2:E{len(df)+1}', regra_alerta)
+                
                 for col in worksheet.columns:
                     max_len = max(len(str(cell.value or '')) for cell in col)
-                    worksheet.column_dimensions[col[0].column_letter].width = max(max_len + 3, 12)
+                    col_letter = col[0].column_letter
+                    if col_letter == 'A':
+                        worksheet.column_dimensions[col_letter].width = 45
+                    else:
+                        worksheet.column_dimensions[col_letter].width = max(max_len + 4, 13)
+                        
+                worksheet.row_dimensions[1].height = 26
 
             st.download_button(
                 label="📄 Exportar Planilha Excel (.xlsx)", data=buffer_xlsx.getvalue(),
@@ -184,42 +228,36 @@ with layout_col1:
             )
             
         with col_btn2:
-            # Utiliza a nossa classe customizada com Cabeçalhos e Rodapés Premium
+            # Geração do PDF Reformulado (Tabela Verde e Termos PT-BR)
             pdf = PDFExecutivo(orientation="L", unit="mm", format="A4")
             pdf.add_page()
             
-            # Recuo técnico inicial para não colar os dados na faixa do topo
             pdf.set_y(32)
             pdf.set_x(12)
             
-            # Subtítulo da Página 1
             pdf.set_font("Arial", "B", 11)
             pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 8, "I. Matriz de Priorizacao (GUT) e Distribuicao de Papeis (RACI)", ln=True)
+            pdf.cell(0, 8, "I. Matriz de Priorização (GUT) e Distribuição de Papéis (RACI)", ln=True)
             pdf.ln(2)
             
-            # Cabeçalho interno da tabela
-            pdf.set_fill_color(38, 50, 56) # Azul Escuro Industrial para diferenciar do topo máster
+            # ALTERAÇÃO SOLICITADA: Cabeçalho da Tabela agora em Verde Oliva Corporativo
+            pdf.set_fill_color(46, 125, 50) 
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Arial", "B", 8.5)
             
             w_tarefa, w_g, w_u, w_t, w_score, w_data, w_raci = 83, 7, 7, 7, 12, 22, 28
-            pdf.set_x(12) # Alinhamento rígido com a margem interna das faixas
-            pdf.cell(w_tarefa, 8, "Tarefa Estrategica", border=1, fill=True)
+            pdf.set_x(12) 
+            pdf.cell(w_tarefa, 8, "Tarefa Estratégica", border=1, fill=True)
             pdf.cell(w_g, 8, "G", border=1, fill=True, align="C")
             pdf.cell(w_u, 8, "U", border=1, fill=True, align="C")
             pdf.cell(w_t, 8, "T", border=1, fill=True, align="C")
             pdf.cell(w_score, 8, "Score", border=1, fill=True, align="C")
-            pdf.cell(w_data, 8, "Inicio", border=1, fill=True, align="C")
-            pdf.cell(w_data, 8, "Conclusao", border=1, fill=True, align="C")
+            pdf.cell(w_data, 8, "Início", border=1, fill=True, align="C")
+            pdf.cell(w_data, 8, "Conclusão", border=1, fill=True, align="C")
             pdf.cell(w_raci, 8, "Aprovador (A)", border=1, fill=True)
-            pdf.cell(w_raci, 8, "Responsavel (R)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Responsável (R)", border=1, fill=True)
             pdf.cell(w_raci, 8, "Consultado (C)", border=1, fill=True)
             pdf.cell(w_raci, 8, "Informado (I)", border=1, fill=True, ln=True)
-            
-            # Linhas da Tabela
-            pdf.set_text_color(0, 0, 0)
-            pdf.set_font("Arial", "", 8)
             
             for idx, row in df.iterrows():
                 bg = idx % 2 == 1
@@ -229,6 +267,8 @@ with layout_col1:
                 x_inicio = pdf.get_x()
                 y_inicio = pdf.get_y()
                 
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", "", 8)
                 pdf.multi_cell(w_tarefa, 5, row['Tarefa'], border=1, fill=bg)
                 y_fim = pdf.get_y()
                 altura_linha = max(6, y_fim - y_inicio) 
@@ -238,97 +278,18 @@ with layout_col1:
                 pdf.cell(w_u, altura_linha, str(row['U']), border=1, fill=bg, align="C")
                 pdf.cell(w_t, altura_linha, str(row['T']), border=1, fill=bg, align="C")
                 
-                if int(row['Score']) >= 60:
-                    pdf.set_text_color(198, 40, 40)
-                    pdf.set_font("Arial", "B", 8)
-                
-                pdf.cell(w_score, altura_linha, str(row['Score']), border=1, fill=bg, align="C")
-                pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Arial", "", 8)
-                
-                pdf.cell(w_data, altura_linha, row['Início'], border=1, fill=bg, align="C")
-                pdf.cell(w_data, altura_linha, row['Conclusão'], border=1, fill=bg, align="C")
-                pdf.cell(w_raci, altura_linha, str(row['Aprovador (A)']), border=1, fill=bg)
-                pdf.cell(w_raci, altura_linha, str(row['Responsável (R)']), border=1, fill=bg)
-                pdf.cell(w_raci, altura_linha, str(row['Consultados (C)']), border=1, fill=bg)
-                pdf.cell(w_raci, altura_linha, str(row['Informados (I)']), border=1, fill=bg, ln=True)
-            
-            # --- CRONOGRAMA EM CARDS NA PÁGINA 2 ---
-            pdf.add_page()
-            pdf.set_y(32)
-            pdf.set_x(12)
-            
-            pdf.set_font("Arial", "B", 11)
-            pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 8, "II. Mapa de Prazos de Execucao (Visao Linear)", ln=True)
-            pdf.ln(3)
-            
-            for idx, row in df.iterrows():
-                pdf.set_x(15)
-                y_card_inicio = pdf.get_y()
-                
-                pdf.set_y(y_card_inicio + 2)
-                pdf.set_x(18)
-                
-                pdf.set_font("Arial", "B", 9)
-                pdf.set_text_color(0, 0, 0)
-                pdf.multi_cell(255, 5, f"{idx+1}. {row['Tarefa']}", border=0)
-                
-                pdf.ln(2) 
-                
                 score_val = int(row['Score'])
                 if score_val >= 60:
-                    pdf.set_fill_color(27, 94, 32)   
-                elif score_val >= 30:
-                    pdf.set_fill_color(44, 160, 90)  
+                    pdf.set_fill_color(255, 235, 238) # Fundo Vermelho Claro
+                    pdf.set_text_color(198, 40, 40)    # Texto Vermelho Escuro
+                    pdf.set_font("Arial", "B", 8)
                 else:
-                    pdf.set_fill_color(161, 219, 178) 
+                    pdf.set_font("Arial", "", 8)
+                    pdf.set_text_color(0, 0, 0)
                 
-                largura_barra = max(15, min(100, score_val * 1.3))
-                y_barra = pdf.get_y()
-                pdf.rect(18, y_barra + 1, largura_barra, 4, "F")
+                pdf.cell(w_score, altura_linha, str(score_val), border=1, fill=True, align="C")
                 
-                pdf.set_font("Arial", "", 8.5)
-                pdf.set_text_color(80, 80, 80)
-                pdf.set_x(23 + largura_barra)
-                pdf.cell(0, 6, f"Prazo: {row['Início']} a {row['Conclusão']} | Responsável: {row['Responsável (R)']}", ln=True)
-                
-                y_card_fim = pdf.get_y() + 2
-                
-                # Borda sutil de cada card
-                pdf.set_draw_color(200, 200, 200) 
-                pdf.set_line_width(0.2)
-                altura_card = y_card_fim - y_card_inicio
-                pdf.rect(15, y_card_inicio, 267, altura_card, "D")
-                
-                pdf.set_y(y_card_fim + 4) 
-            
-            pdf.set_draw_color(0, 0, 0) 
-            
-            pdf_output = pdf.output()
-            st.download_button(
-                label="📕 Exportar Relatório PDF (.pdf)", data=bytes(pdf_output),
-                file_name="relatorio_cronograma_tarefas.pdf", mime="application/pdf",
-                use_container_width=True
-            )
-
-with layout_col2:
-    st.subheader("📊 Volume de Criticidade")
-    if not df.empty:
-        fig_bar = px.bar(
-            df, x="Score", y="Tarefa", orientation="h", text="Score", color="Score",
-            color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"]
-        )
-        fig_bar.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False, margin=dict(l=10, r=10, t=10, b=10), height=250)
-        st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.info("Nenhuma tarefa registada.")
-
-# 8. Cronograma Interativo no Ecrã (Gantt)
-st.markdown("---")
-st.subheader("📅 Cronograma Interativo de Execução (Linha do Tempo)")
-if not df.empty:
-    st.plotly_chart(fig_gantt, use_container_width=True)
-else:
-    st.info("Adicione tarefas para visualizar o mapa do cronograma.")
-            
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", "", 8)
+                if bg:
+        
