@@ -95,7 +95,8 @@ df["Conclusão"] = pd.to_datetime(df["Conclusão"]).dt.strftime("%d/%m/%Y")
 ordem_colunas = ["Tarefa", "G", "U", "T", "Score", "Início", "Conclusão", "Aprovador (A)", "Responsável (R)", "Consultados (C)", "Informados (I)"]
 df = df[ordem_colunas]
 
-# 6. Gráfico Interativo para a Tela
+# 6. Gráfico Interativo para a Tela (Corrigido para evitar erros de bloco vazio)
+fig_gantt = None
 if not df.empty:
     df_timeline = df_para_grafico.copy()
     df_timeline["Início"] = pd.to_datetime(df_timeline["Início"])
@@ -115,12 +116,10 @@ if not df.empty:
 # 7. Classe do PDF Customizada (Bordas Máster, Cabeçalhos e Rodapés em PT-BR)
 class PDFExecutivo(FPDF):
     def header(self):
-        # Moldura estrutural externa nas margens da folha
         self.set_draw_color(180, 180, 180)
         self.set_line_width(0.3)
         self.rect(10, 10, 277, 190, "D")
         
-        # Faixa Verde Máster do Topo
         self.set_fill_color(27, 94, 32) 
         self.rect(12, 12, 273, 14, "F")
         
@@ -130,7 +129,6 @@ class PDFExecutivo(FPDF):
         self.cell(0, 10, "PLANO DE AÇÃO E GOVERNANÇA ESTRATÉGICA", align="L")
         
     def footer(self):
-        # Detalhe em verde no rodapé
         self.set_fill_color(44, 160, 90) 
         self.rect(12, 191, 273, 1.5, "F")
         
@@ -168,7 +166,6 @@ with layout_col1:
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
-            # Exportação Avançada para o Excel (Verde Corporativo + Zebra + Alertas)
             buffer_xlsx = io.BytesIO()
             with pd.ExcelWriter(buffer_xlsx, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False, sheet_name='Plano de Trabalho')
@@ -182,114 +179,5 @@ with layout_col1:
                 alinhamento_esquerda = Alignment(horizontal='left', vertical='center', wrap_text=True)
                 
                 borda_fina_estilo = Side(border_style="thin", color="D3D3D3")
-                borda_grade = Border(left=borda_fina_estilo, right=borda_fina_estilo, top=borda_fina_estilo, bottom=borda_fina_estilo)
+                borda_grade = Border(left=borda_fina_estilo, right=borda_fina_estilo, top=borda_fina_estilo, bottom=borda_fina
                 
-                for col_num in range(1, len(df.columns) + 1):
-                    celula = worksheet.cell(row=1, column=col_num)
-                    celula.font = fonte_cabecalho
-                    celula.fill = preenchimento_cabecalho
-                    celula.alignment = alinhamento_centro
-                    celula.border = borda_grade
-                
-                for row_num in range(2, len(df) + 2):
-                    worksheet.row_dimensions[row_num].height = 20
-                    for col_num in range(1, len(df.columns) + 1):
-                        celula = worksheet.cell(row=row_num, column=col_num)
-                        celula.font = Font(name='Calibri', size=11)
-                        celula.border = borda_grade
-                        
-                        if col_num in [2, 3, 4, 5, 6, 7]:
-                            celula.alignment = alinhamento_centro
-                        else:
-                            celula.alignment = alinhamento_esquerda
-                            
-                        if row_num % 2 == 1:
-                            celula.fill = preenchimento_zebra
-                
-                cor_alerta = PatternFill(start_color='FFEBEE', end_color='FFEBEE', fill_type='solid')
-                fonte_alerta = Font(name='Calibri', size=11, bold=True, color='C62828')
-                regra_alerta = CellIsRule(operator='greaterThanOrEqual', formula=['60'], fill=cor_alerta, font=fonte_alerta)
-                worksheet.conditional_formatting.add(f'E2:E{len(df)+1}', regra_alerta)
-                
-                for col in worksheet.columns:
-                    max_len = max(len(str(cell.value or '')) for cell in col)
-                    col_letter = col[0].column_letter
-                    if col_letter == 'A':
-                        worksheet.column_dimensions[col_letter].width = 45
-                    else:
-                        worksheet.column_dimensions[col_letter].width = max(max_len + 4, 13)
-                        
-                worksheet.row_dimensions[1].height = 26
-
-            st.download_button(
-                label="📄 Exportar Planilha Excel (.xlsx)", data=buffer_xlsx.getvalue(),
-                file_name="plano_trabalho_gut_raci.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-            
-        with col_btn2:
-            # Geração do PDF Reformulado (Tabela Verde e Termos PT-BR)
-            pdf = PDFExecutivo(orientation="L", unit="mm", format="A4")
-            pdf.add_page()
-            
-            pdf.set_y(32)
-            pdf.set_x(12)
-            
-            pdf.set_font("Arial", "B", 11)
-            pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 8, "I. Matriz de Priorização (GUT) e Distribuição de Papéis (RACI)", ln=True)
-            pdf.ln(2)
-            
-            # ALTERAÇÃO SOLICITADA: Cabeçalho da Tabela agora em Verde Oliva Corporativo
-            pdf.set_fill_color(46, 125, 50) 
-            pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", "B", 8.5)
-            
-            w_tarefa, w_g, w_u, w_t, w_score, w_data, w_raci = 83, 7, 7, 7, 12, 22, 28
-            pdf.set_x(12) 
-            pdf.cell(w_tarefa, 8, "Tarefa Estratégica", border=1, fill=True)
-            pdf.cell(w_g, 8, "G", border=1, fill=True, align="C")
-            pdf.cell(w_u, 8, "U", border=1, fill=True, align="C")
-            pdf.cell(w_t, 8, "T", border=1, fill=True, align="C")
-            pdf.cell(w_score, 8, "Score", border=1, fill=True, align="C")
-            pdf.cell(w_data, 8, "Início", border=1, fill=True, align="C")
-            pdf.cell(w_data, 8, "Conclusão", border=1, fill=True, align="C")
-            pdf.cell(w_raci, 8, "Aprovador (A)", border=1, fill=True)
-            pdf.cell(w_raci, 8, "Responsável (R)", border=1, fill=True)
-            pdf.cell(w_raci, 8, "Consultado (C)", border=1, fill=True)
-            pdf.cell(w_raci, 8, "Informado (I)", border=1, fill=True, ln=True)
-            
-            for idx, row in df.iterrows():
-                bg = idx % 2 == 1
-                pdf.set_fill_color(244, 250, 245) if bg else pdf.set_fill_color(255, 255, 255)
-                
-                pdf.set_x(12)
-                x_inicio = pdf.get_x()
-                y_inicio = pdf.get_y()
-                
-                pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Arial", "", 8)
-                pdf.multi_cell(w_tarefa, 5, row['Tarefa'], border=1, fill=bg)
-                y_fim = pdf.get_y()
-                altura_linha = max(6, y_fim - y_inicio) 
-                
-                pdf.set_xy(x_inicio + w_tarefa, y_inicio)
-                pdf.cell(w_g, altura_linha, str(row['G']), border=1, fill=bg, align="C")
-                pdf.cell(w_u, altura_linha, str(row['U']), border=1, fill=bg, align="C")
-                pdf.cell(w_t, altura_linha, str(row['T']), border=1, fill=bg, align="C")
-                
-                score_val = int(row['Score'])
-                if score_val >= 60:
-                    pdf.set_fill_color(255, 235, 238) # Fundo Vermelho Claro
-                    pdf.set_text_color(198, 40, 40)    # Texto Vermelho Escuro
-                    pdf.set_font("Arial", "B", 8)
-                else:
-                    pdf.set_font("Arial", "", 8)
-                    pdf.set_text_color(0, 0, 0)
-                
-                pdf.cell(w_score, altura_linha, str(score_val), border=1, fill=True, align="C")
-                
-                pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Arial", "", 8)
-                if bg:
-        
