@@ -119,14 +119,14 @@ class PDFExecutivo(FPDF):
         self.rect(10, 10, 277, 190, "D")
         
         # 2. Desenha a Faixa Verde do Cabeçalho
-        self.set_fill_color(27, 94, 32) # Verde Escuro SEAPI
+        self.set_fill_color(27, 94, 32) # Verde Escuro
         self.rect(12, 12, 273, 14, "F")
         
         # Texto dentro da Faixa Verde
         self.set_xy(15, 14)
         self.set_font("Arial", "B", 14)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 10, "PLANO DE ACÇÃO E GOVERNAÇÃO ESTRATÉGICA", align="L")
+        self.cell(0, 10, "PLANO DE ACCAO E GOVERNACAO ESTRATEGICA", align="L")
         
     def footer(self):
         # 3. Desenha a Faixa Verde Fina do Rodapé
@@ -142,7 +142,7 @@ class PDFExecutivo(FPDF):
         self.cell(100, 5, f"Documento Institucional - Emitido em: {data_hoje}", align="L")
         
         self.set_x(240)
-        self.cell(40, 5, f"Página {self.page_no()}", align="R")
+        self.cell(40, 5, f"Pagina {self.page_no()}", align="R")
 
 # 8. Renderização do Painel Visual do Streamlit
 layout_col1, layout_col2 = st.columns([6, 4])
@@ -211,5 +211,124 @@ with layout_col1:
             pdf.cell(w_t, 8, "T", border=1, fill=True, align="C")
             pdf.cell(w_score, 8, "Score", border=1, fill=True, align="C")
             pdf.cell(w_data, 8, "Inicio", border=1, fill=True, align="C")
-            pdf.cell(w_data, 8, "Conclusao", border=1, fill=)
-        
+            pdf.cell(w_data, 8, "Conclusao", border=1, fill=True, align="C")
+            pdf.cell(w_raci, 8, "Aprovador (A)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Responsavel (R)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Consultado (C)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Informado (I)", border=1, fill=True, ln=True)
+            
+            # Linhas da Tabela
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", "", 8)
+            
+            for idx, row in df.iterrows():
+                bg = idx % 2 == 1
+                pdf.set_fill_color(244, 250, 245) if bg else pdf.set_fill_color(255, 255, 255)
+                
+                pdf.set_x(12)
+                x_inicio = pdf.get_x()
+                y_inicio = pdf.get_y()
+                
+                pdf.multi_cell(w_tarefa, 5, row['Tarefa'], border=1, fill=bg)
+                y_fim = pdf.get_y()
+                altura_linha = max(6, y_fim - y_inicio) 
+                
+                pdf.set_xy(x_inicio + w_tarefa, y_inicio)
+                pdf.cell(w_g, altura_linha, str(row['G']), border=1, fill=bg, align="C")
+                pdf.cell(w_u, altura_linha, str(row['U']), border=1, fill=bg, align="C")
+                pdf.cell(w_t, altura_linha, str(row['T']), border=1, fill=bg, align="C")
+                
+                if int(row['Score']) >= 60:
+                    pdf.set_text_color(198, 40, 40)
+                    pdf.set_font("Arial", "B", 8)
+                
+                pdf.cell(w_score, altura_linha, str(row['Score']), border=1, fill=bg, align="C")
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", "", 8)
+                
+                pdf.cell(w_data, altura_linha, row['Início'], border=1, fill=bg, align="C")
+                pdf.cell(w_data, altura_linha, row['Conclusão'], border=1, fill=bg, align="C")
+                pdf.cell(w_raci, altura_linha, str(row['Aprovador (A)']), border=1, fill=bg)
+                pdf.cell(w_raci, altura_linha, str(row['Responsável (R)']), border=1, fill=bg)
+                pdf.cell(w_raci, altura_linha, str(row['Consultados (C)']), border=1, fill=bg)
+                pdf.cell(w_raci, altura_linha, str(row['Informados (I)']), border=1, fill=bg, ln=True)
+            
+            # --- CRONOGRAMA EM CARDS NA PÁGINA 2 ---
+            pdf.add_page()
+            pdf.set_y(32)
+            pdf.set_x(12)
+            
+            pdf.set_font("Arial", "B", 11)
+            pdf.set_text_color(50, 50, 50)
+            pdf.cell(0, 8, "II. Mapa de Prazos de Execucao (Visao Linear)", ln=True)
+            pdf.ln(3)
+            
+            for idx, row in df.iterrows():
+                pdf.set_x(15)
+                y_card_inicio = pdf.get_y()
+                
+                pdf.set_y(y_card_inicio + 2)
+                pdf.set_x(18)
+                
+                pdf.set_font("Arial", "B", 9)
+                pdf.set_text_color(0, 0, 0)
+                pdf.multi_cell(255, 5, f"{idx+1}. {row['Tarefa']}", border=0)
+                
+                pdf.ln(2) 
+                
+                score_val = int(row['Score'])
+                if score_val >= 60:
+                    pdf.set_fill_color(27, 94, 32)   
+                elif score_val >= 30:
+                    pdf.set_fill_color(44, 160, 90)  
+                else:
+                    pdf.set_fill_color(161, 219, 178) 
+                
+                largura_barra = max(15, min(100, score_val * 1.3))
+                y_barra = pdf.get_y()
+                pdf.rect(18, y_barra + 1, largura_barra, 4, "F")
+                
+                pdf.set_font("Arial", "", 8.5)
+                pdf.set_text_color(80, 80, 80)
+                pdf.set_x(23 + largura_barra)
+                pdf.cell(0, 6, f"Prazo: {row['Início']} a {row['Conclusão']} | Responsável: {row['Responsável (R)']}", ln=True)
+                
+                y_card_fim = pdf.get_y() + 2
+                
+                # Borda sutil de cada card
+                pdf.set_draw_color(200, 200, 200) 
+                pdf.set_line_width(0.2)
+                altura_card = y_card_fim - y_card_inicio
+                pdf.rect(15, y_card_inicio, 267, altura_card, "D")
+                
+                pdf.set_y(y_card_fim + 4) 
+            
+            pdf.set_draw_color(0, 0, 0) 
+            
+            pdf_output = pdf.output()
+            st.download_button(
+                label="📕 Exportar Relatório PDF (.pdf)", data=bytes(pdf_output),
+                file_name="relatorio_cronograma_tarefas.pdf", mime="application/pdf",
+                use_container_width=True
+            )
+
+with layout_col2:
+    st.subheader("📊 Volume de Criticidade")
+    if not df.empty:
+        fig_bar = px.bar(
+            df, x="Score", y="Tarefa", orientation="h", text="Score", color="Score",
+            color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"]
+        )
+        fig_bar.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False, margin=dict(l=10, r=10, t=10, b=10), height=250)
+        st.plotly_chart(fig_bar, use_container_width=True)
+    else:
+        st.info("Nenhuma tarefa registada.")
+
+# 8. Cronograma Interativo no Ecrã (Gantt)
+st.markdown("---")
+st.subheader("📅 Cronograma Interativo de Execução (Linha do Tempo)")
+if not df.empty:
+    st.plotly_chart(fig_gantt, use_container_width=True)
+else:
+    st.info("Adicione tarefas para visualizar o mapa do cronograma.")
+            
