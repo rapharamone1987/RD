@@ -31,21 +31,24 @@ if "dados_estrategicos" not in st.session_state:
         }
     ])
 
+# Tratamento preventivo global contra Nones
+st.session_state.dados_estrategicos = st.session_state.dados_estrategicos.fillna("")
+
 # 2. Formulário de Cadastro
 with st.form("nova_tarefa_form", clear_on_submit=True):
     st.subheader("🆕 Cadastrar Nova Tarefa Estratégica")
     c1, c2, c3, c4 = st.columns([4, 2, 2, 2])
-    with c1: descricao = st.text_input("Descrição da Tarefa:")
-    with c2: g = st.selectbox("Gravidade (G):", [1, 2, 3, 4, 5])
-    with c3: u = st.selectbox("Urgência (U):", [1, 2, 3, 4, 5])
-    with c4: t = st.selectbox("Tendência (T):", [1, 2, 3, 4, 5])
+    with c1: descricao = st.text_input("Descrição da Tarefa:", placeholder="Digite a ação...")
+    with c2: g = st.selectbox("Gravidade (G):", [1, 2, 3, 4, 5], index=2)
+    with c3: u = st.selectbox("Urgência (U):", [1, 2, 3, 4, 5], index=2)
+    with c4: t = st.selectbox("Tendência (T):", [1, 2, 3, 4, 5], index=2)
     
     st.markdown("**Atribuição de Papéis (Matriz RACI):**")
     r1, r2, r3, r4 = st.columns(4)
-    with r1: aprovador = st.text_input("Aprovador (A):", placeholder="Ex: Diretor da Área")
-    with r2: responsavel = st.text_input("Responsável (R):", placeholder="Ex: Equipe X")
-    with r3: consultados = st.text_input("Consultados (C):", placeholder="Ex: Setor de TI")
-    with r4: informados = st.text_input("Informados (I):", placeholder="Ex: Secretário")
+    with r1: aprovador = st.text_input("Aprovador (A):", placeholder="Ex: Diretor da Área").strip()
+    with r2: responsavel = st.text_input("Responsável (R):", placeholder="Ex: Equipe X").strip()
+    with r3: consultados = st.text_input("Consultados (C):", placeholder="Ex: Setor de TI").strip()
+    with r4: informados = st.text_input("Informados (I):", placeholder="Ex: Secretário").strip()
         
     st.markdown("**Cronograma de Execução:**")
     dt1, dt2 = st.columns(2)
@@ -58,13 +61,15 @@ if submit and descricao:
         st.error("Erro: A data de início não pode ser posterior ao prazo de conclusão!")
     else:
         novo = pd.DataFrame([{"Tarefa": descricao, "G": g, "U": u, "T": t, "Aprovador (A)": aprovador, "Responsável (R)": responsavel, "Consultados (C)": consultados, "Informados (I)": informados, "Início": data_inicio.strftime("%Y-%m-%d"), "Conclusão": data_fim.strftime("%Y-%m-%d")}])
-        st.session_state.dados_estrategicos = pd.concat([st.session_state.dados_estrategicos, novo], ignore_index=True)
+        st.session_state.dados_estrategicos = pd.concat([st.session_state.dados_estrategicos, novo], ignore_index=True).fillna("")
         st.rerun()
 
-# 3. Processamento dos Dados
+# 3. Processamento Geral dos Dados
 df = st.session_state.dados_estrategicos.copy()
 df["Score"] = df["G"] * df["U"] * df["T"]
 df = df.sort_values(by="Score", ascending=False).reset_index(drop=True)
+
+# DF isolado mantendo as datas originais em padrão ISO para os gráficos Plotly
 df_par_grafico = df.copy()
 
 df["Início"] = pd.to_datetime(df["Início"]).dt.strftime("%d/%m/%Y")
@@ -72,7 +77,7 @@ df["Conclusão"] = pd.to_datetime(df["Conclusão"]).dt.strftime("%d/%m/%Y")
 ordem = ["Tarefa", "G", "U", "T", "Score", "Início", "Conclusão", "Aprovador (A)", "Responsável (R)", "Consultados (C)", "Informados (I)"]
 df = df[ordem]
 
-# 4. Classe União União Customizada do PDF Executivo
+# 4. Classe Customizada do PDF Executivo
 class PDFExecutivo(FPDF):
     def header(self):
         self.set_draw_color(180, 180, 180)
@@ -95,7 +100,7 @@ class PDFExecutivo(FPDF):
         self.set_x(240)
         self.cell(40, 5, f"Página {self.page_no()}", align="R")
 
-# 5. Renderização do Painel Web
+# 5. Renderização do Painel Web (Layout Adaptivo)
 l_col1, l_col2 = st.columns([6, 4])
 
 with l_col1:
@@ -112,7 +117,6 @@ with l_col1:
     if not df.empty:
         b1, b2 = st.columns(2)
         with b1:
-            # EXCEL EXECUTIVO ESTILIZADO EM VERDE + CONDICIONAL (Compactado contra cortes)
             buf = io.BytesIO()
             with pd.ExcelWriter(buf, engine='openpyxl') as wr:
                 df.to_excel(wr, index=False, sheet_name='Plano')
@@ -142,26 +146,25 @@ with l_col1:
             st.download_button("📄 Exportar Planilha Excel (.xlsx)", buf.getvalue(), "plano_trabalho_gut_raci.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
             
         with b2:
-            # PDF PREMIUM ATUALIZADO (Cabeçalho Verde Oliva + Cards na Página 2)
             pdf = PDFExecutivo(orientation="L", unit="mm", format="A4")
             pdf.add_page()
             pdf.set_y(32)
             pdf.set_font("Arial", "B", 11)
             pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 8, "I. Matriz de Priorizacao (GUT) e Distribuicao de Papeis (RACI)", ln=True)
+            pdf.cell(0, 8, "I. Matriz de Priorização (GUT) e Distribuição de Papéis (RACI)", ln=True)
             pdf.ln(2)
             
-            pdf.set_fill_color(46, 125, 50) # Cabeçalho Verde Oliva solicitado
+            pdf.set_fill_color(46, 125, 50) 
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Arial", "B", 8.5)
             
             w_tf, w_g, w_u, w_t, w_sc, w_dt, w_rc = 83, 7, 7, 7, 12, 22, 28
             pdf.set_x(12)
-            pdf.cell(w_tf, 8, "Tarefa Estrategica", 1, 0, "", True)
+            pdf.cell(w_tf, 8, "Tarefa Estratégica", 1, 0, "", True)
             pdf.cell(w_g, 8, "G", 1, 0, "C", True); pdf.cell(w_u, 8, "U", 1, 0, "C", True); pdf.cell(w_t, 8, "T", 1, 0, "C", True)
             pdf.cell(w_sc, 8, "Score", 1, 0, "C", True)
-            pdf.cell(w_dt, 8, "Inicio", 1, 0, "C", True); pdf.cell(w_dt, 8, "Conclusao", 1, 0, "C", True)
-            pdf.cell(w_rc, 8, "Aprovador (A)", 1, 0, "", True); pdf.cell(w_rc, 8, "Responsavel (R)", 1, 0, "", True)
+            pdf.cell(w_dt, 8, "Início", 1, 0, "C", True); pdf.cell(w_dt, 8, "Conclusão", 1, 0, "C", True)
+            pdf.cell(w_rc, 8, "Aprovador (A)", 1, 0, "", True); pdf.cell(w_rc, 8, "Responsável (R)", 1, 0, "", True)
             pdf.cell(w_rc, 8, "Consultado (C)", 1, 0, "", True); pdf.cell(w_rc, 8, "Informado (I)", 1, 1, "", True)
             
             for idx, row in df.iterrows():
@@ -190,7 +193,7 @@ with l_col1:
             # --- CRONOGRAMA EM CARDS (PÁGINA 2) ---
             pdf.add_page()
             pdf.set_y(32); pdf.set_font("Arial", "B", 11); pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 8, "II. Mapa de Prazos de Execucao (Visao Linear)", ln=True)
+            pdf.cell(0, 8, "II. Mapa de Prazos de Execução (Visão Linear)", ln=True)
             pdf.ln(3)
             
             for idx, row in df.iterrows():
@@ -219,19 +222,39 @@ with l_col2:
     st.subheader("📊 Volume de Criticidade")
     if not df.empty:
         fig_bar = px.bar(df, x="Score", y="Tarefa", orientation="h", text="Score", color="Score", color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"])
-        fig_bar.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False, margin=dict(l=10, r=10, t=10, b=10), height=250)
+        fig_bar.update_yaxes(automargin=True)
+        fig_bar.update_layout(
+            yaxis={'categoryorder':'total ascending'}, 
+            showlegend=False, 
+            coloraxis_colorbar=dict(orientation="h", y=-0.3, title="GUT"),
+            margin=dict(l=10, r=10, t=10, b=80), 
+            height=320
+        )
         st.plotly_chart(fig_bar, use_container_width=True)
     else: st.info("Nenhuma tarefa registrada.")
 
-# 6. Cronograma Interativo da Tela
+# 6. CORREÇÃO DA LINHA DO TEMPO (Gantt Consertado)
 st.markdown("---")
 st.subheader("📅 Cronograma Interativo de Execução (Linha do Tempo)")
-if not df.empty and 'fig_gantt' in locals() or 'fig_gantt' in globals():
+if not df_par_grafico.empty:
     df_tl = df_par_grafico.copy()
-    df_tl["Início"], df_tl["Conclusão"] = pd.to_datetime(df_tl["Início"]), pd.to_datetime(df_tl["Conclusão"])
+    # Força a conversão das datas puras em formato ISO estável
+    df_tl["Início"] = pd.to_datetime(df_tl["Início"])
+    df_tl["Conclusão"] = pd.to_datetime(df_tl["Conclusão"])
+    
+    # Renderiza o Gantt usando as datas limpas de segurança
     f_gantt = px.timeline(df_tl, x_start="Início", x_end="Conclusão", y="Tarefa", color="Score", color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"])
     f_gantt.update_xaxes(tickformat="%d/%m")
-    f_gantt.update_layout(yaxis={'categoryorder': 'total ascending'}, xaxis_title="Linha do Tempo", yaxis_title="", margin=dict(l=20, r=20, t=40, b=20), height=350)
+    f_gantt.update_yaxes(automargin=True)
+    f_gantt.update_layout(
+        yaxis={'categoryorder': 'total ascending'}, 
+        xaxis_title="Linha do Tempo (Dia/Mês)", 
+        yaxis_title="", 
+        coloraxis_colorbar=dict(orientation="h", y=-0.4),
+        margin=dict(l=20, r=20, t=40, b=80), 
+        height=380
+    )
     st.plotly_chart(f_gantt, use_container_width=True)
-else: st.info("Adicione tarefas para visualizar o mapa do cronograma.")
-            
+else: 
+    st.info("Adicione tarefas para visualizar o mapa do cronograma.")
+                
