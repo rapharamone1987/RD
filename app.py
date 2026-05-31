@@ -31,8 +31,11 @@ if "dados_estrategicos" not in st.session_state:
         }
     ])
 
-# Tratamento preventivo global contra Nones
-st.session_state.dados_estrategicos = st.session_state.dados_estrategicos.fillna("")
+# Força a limpeza absoluta de qualquer valor nulo ou None espiritual no DataFrame principal
+st.session_state.dados_estrategicos = st.session_state.dados_estrategicos.fillna("").astype(str)
+st.session_state.dados_estrategicos["G"] = pd.to_numeric(st.session_state.dados_estrategicos["G"], errors='coerce').fillna(3).astype(int)
+st.session_state.dados_estrategicos["U"] = pd.to_numeric(st.session_state.dados_estrategicos["U"], errors='coerce').fillna(3).astype(int)
+st.session_state.dados_estrategicos["T"] = pd.to_numeric(st.session_state.dados_estrategicos["T"], errors='coerce').fillna(3).astype(int)
 
 # 2. Formulário de Cadastro
 with st.form("nova_tarefa_form", clear_on_submit=True):
@@ -60,7 +63,7 @@ if submit and descricao:
     if data_inicio > data_fim:
         st.error("Erro: A data de início não pode ser posterior ao prazo de conclusão!")
     else:
-        novo = pd.DataFrame([{"Tarefa": descricao, "G": g, "U": u, "T": t, "Aprovador (A)": aprovador, "Responsável (R)": responsavel, "Consultados (C)": consultados, "Informados (I)": informados, "Início": data_inicio.strftime("%Y-%m-%d"), "Conclusão": data_fim.strftime("%Y-%m-%d")}])
+        novo = pd.DataFrame([{"Tarefa": descricao, "G": int(g), "U": int(u), "T": int(t), "Aprovador (A)": aprovador, "Responsável (R)": responsavel, "Consultados (C)": consultados, "Informados (I)": informados, "Início": data_inicio.strftime("%Y-%m-%d"), "Conclusão": data_fim.strftime("%Y-%m-%d")}])
         st.session_state.dados_estrategicos = pd.concat([st.session_state.dados_estrategicos, novo], ignore_index=True).fillna("")
         st.rerun()
 
@@ -69,7 +72,6 @@ df = st.session_state.dados_estrategicos.copy()
 df["Score"] = df["G"] * df["U"] * df["T"]
 df = df.sort_values(by="Score", ascending=False).reset_index(drop=True)
 
-# DF isolado mantendo as datas originais em padrão ISO para os gráficos Plotly
 df_par_grafico = df.copy()
 
 df["Início"] = pd.to_datetime(df["Início"]).dt.strftime("%d/%m/%Y")
@@ -105,9 +107,30 @@ l_col1, l_col2 = st.columns([6, 4])
 
 with l_col1:
     st.subheader("📋 Painel de Governança e Prazos")
-    df_ed = df.copy()
+    
+    # Prepara cópia limpa substituindo nulos por strings vazias para o editor de dados
+    df_ed = df.copy().fillna("")
     df_ed.insert(0, "Excluir", False)
-    ed_res = st.data_editor(df_ed, use_container_width=True, hide_index=True, disabled=ordem, column_config={"Excluir": st.column_config.CheckboxColumn(required=True)})
+    
+    # CONFIGURAÇÃO DE COLUNAS ULTRA ESTRITA: Remove os badges verdes do "None"
+    configuracao_colunas = {
+        "Excluir": st.column_config.CheckboxColumn(required=True),
+        "Tarefa": st.column_config.TextColumn(width="large"),
+        "Início": st.column_config.TextColumn(alignment="center"),
+        "Conclusão": st.column_config.TextColumn(alignment="center"),
+        "Aprovador (A)": st.column_config.TextColumn(),
+        "Responsável (R)": st.column_config.TextColumn(),
+        "Consultados (C)": st.column_config.TextColumn(),
+        "Informados (I)": st.column_config.TextColumn()
+    }
+    
+    ed_res = st.data_editor(
+        df_ed, 
+        use_container_width=True, 
+        hide_index=True, 
+        disabled=ordem, 
+        column_config=configuracao_colunas
+    )
     
     if ed_res["Excluir"].any():
         manter = ed_res[~ed_res["Excluir"]]["Tarefa"].tolist()
@@ -233,16 +256,14 @@ with l_col2:
         st.plotly_chart(fig_bar, use_container_width=True)
     else: st.info("Nenhuma tarefa registrada.")
 
-# 6. CORREÇÃO DA LINHA DO TEMPO (Gantt Consertado)
+# 6. CRONOGRAMA INTERATIVO (Gantt com Proteção Antifalhas)
 st.markdown("---")
 st.subheader("📅 Cronograma Interativo de Execução (Linha do Tempo)")
 if not df_par_grafico.empty:
     df_tl = df_par_grafico.copy()
-    # Força a conversão das datas puras em formato ISO estável
     df_tl["Início"] = pd.to_datetime(df_tl["Início"])
     df_tl["Conclusão"] = pd.to_datetime(df_tl["Conclusão"])
     
-    # Renderiza o Gantt usando as datas limpas de segurança
     f_gantt = px.timeline(df_tl, x_start="Início", x_end="Conclusão", y="Tarefa", color="Score", color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"])
     f_gantt.update_xaxes(tickformat="%d/%m")
     f_gantt.update_yaxes(automargin=True)
@@ -257,4 +278,4 @@ if not df_par_grafico.empty:
     st.plotly_chart(f_gantt, use_container_width=True)
 else: 
     st.info("Adicione tarefas para visualizar o mapa do cronograma.")
-                
+                                                                                                                             
