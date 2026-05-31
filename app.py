@@ -31,7 +31,7 @@ if "dados_estrategicos" not in st.session_state:
         }
     ])
 
-# Força a limpeza absoluta de qualquer valor nulo ou None espiritual no DataFrame principal
+# Força a limpeza absoluta de nulos
 st.session_state.dados_estrategicos = st.session_state.dados_estrategicos.fillna("").astype(str)
 st.session_state.dados_estrategicos["G"] = pd.to_numeric(st.session_state.dados_estrategicos["G"], errors='coerce').fillna(3).astype(int)
 st.session_state.dados_estrategicos["U"] = pd.to_numeric(st.session_state.dados_estrategicos["U"], errors='coerce').fillna(3).astype(int)
@@ -71,7 +71,6 @@ if submit and descricao:
 df = st.session_state.dados_estrategicos.copy()
 df["Score"] = df["G"] * df["U"] * df["T"]
 df = df.sort_values(by="Score", ascending=False).reset_index(drop=True)
-
 df_par_grafico = df.copy()
 
 df["Início"] = pd.to_datetime(df["Início"]).dt.strftime("%d/%m/%Y")
@@ -102,35 +101,26 @@ class PDFExecutivo(FPDF):
         self.set_x(240)
         self.cell(40, 5, f"Página {self.page_no()}", align="R")
 
-# 5. Renderização do Painel Web (Layout Adaptivo)
+# 5. Renderização do Painel Web (Identação Alinhada)
 l_col1, l_col2 = st.columns([6, 4])
 
 with l_col1:
     st.subheader("📋 Painel de Governança e Prazos")
-    
-    # Prepara cópia limpa substituindo nulos por strings vazias para o editor de dados
     df_ed = df.copy().fillna("")
     df_ed.insert(0, "Excluir", False)
-    # A configuração que força o Streamlit a exibir texto limpo e ignorar os balões de None
-configuracao_colunas = {
-    "Excluir": st.column_config.CheckboxColumn(required=True),
-    "Tarefa": st.column_config.TextColumn(width="large", default=""),
-    "Início": st.column_config.TextColumn(alignment="center", default=""),
-    "Conclusão": st.column_config.TextColumn(alignment="center", default=""),
-    "Aprovador (A)": st.column_config.TextColumn(default=""),
-    "Responsável (R)": st.column_config.TextColumn(default=""),
-    "Consultados (C)": st.column_config.TextColumn(default=""),
-    "Informados (I)": st.column_config.TextColumn(default="")
-}
-
     
-    ed_res = st.data_editor(
-        df_ed, 
-        use_container_width=True, 
-        hide_index=True, 
-        disabled=ordem, 
-        column_config=configuracao_colunas
-    )
+    cfg_cols = {
+        "Excluir": st.column_config.CheckboxColumn(required=True),
+        "Tarefa": st.column_config.TextColumn(width="large", default=""),
+        "Início": st.column_config.TextColumn(alignment="center", default=""),
+        "Conclusão": st.column_config.TextColumn(alignment="center", default=""),
+        "Aprovador (A)": st.column_config.TextColumn(default=""),
+        "Responsável (R)": st.column_config.TextColumn(default=""),
+        "Consultados (C)": st.column_config.TextColumn(default=""),
+        "Informados (I)": st.column_config.TextColumn(default="")
+    }
+    
+    ed_res = st.data_editor(df_ed, use_container_width=True, hide_index=True, disabled=ordem, column_config=cfg_cols)
     
     if ed_res["Excluir"].any():
         manter = ed_res[~ed_res["Excluir"]]["Tarefa"].tolist()
@@ -246,17 +236,11 @@ with l_col2:
     if not df.empty:
         fig_bar = px.bar(df, x="Score", y="Tarefa", orientation="h", text="Score", color="Score", color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"])
         fig_bar.update_yaxes(automargin=True)
-        fig_bar.update_layout(
-            yaxis={'categoryorder':'total ascending'}, 
-            showlegend=False, 
-            coloraxis_colorbar=dict(orientation="h", y=-0.3, title="GUT"),
-            margin=dict(l=10, r=10, t=10, b=80), 
-            height=320
-        )
+        fig_bar.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False, coloraxis_colorbar=dict(orientation="h", y=-0.3, title="GUT"), margin=dict(l=10, r=10, t=10, b=80), height=320)
         st.plotly_chart(fig_bar, use_container_width=True)
     else: st.info("Nenhuma tarefa registrada.")
 
-# 6. CRONOGRAMA INTERATIVO (Gantt com Proteção Antifalhas)
+# 6. Cronograma Interativo da Tela (Gantt)
 st.markdown("---")
 st.subheader("📅 Cronograma Interativo de Execução (Linha do Tempo)")
 if not df_par_grafico.empty:
@@ -267,15 +251,7 @@ if not df_par_grafico.empty:
     f_gantt = px.timeline(df_tl, x_start="Início", x_end="Conclusão", y="Tarefa", color="Score", color_continuous_scale=["#a1dbb2", "#2ca05a", "#1b5e20"])
     f_gantt.update_xaxes(tickformat="%d/%m")
     f_gantt.update_yaxes(automargin=True)
-    f_gantt.update_layout(
-        yaxis={'categoryorder': 'total ascending'}, 
-        xaxis_title="Linha do Tempo (Dia/Mês)", 
-        yaxis_title="", 
-        coloraxis_colorbar=dict(orientation="h", y=-0.4),
-        margin=dict(l=20, r=20, t=40, b=80), 
-        height=380
-    )
+    f_gantt.update_layout(yaxis={'categoryorder': 'total ascending'}, xaxis_title="Linha do Tempo (Dia/Mês)", yaxis_title="", coloraxis_colorbar=dict(orientation="h", y=-0.4), margin=dict(l=20, r=20, t=40, b=80), height=380)
     st.plotly_chart(f_gantt, use_container_width=True)
 else: 
     st.info("Adicione tarefas para visualizar o mapa do cronograma.")
-                                                                                                                             
