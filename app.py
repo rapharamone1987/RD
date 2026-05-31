@@ -211,5 +211,5 @@ with layout_col1:
             pdf.cell(w_t, 8, "T", border=1, fill=True, align="C")
             pdf.cell(w_score, 8, "Score", border=1, fill=True, align="C")
             pdf.cell(w_data, 8, "Inicio", border=1, fill=True, align="C")
-            pdf.cell(w_data, 8, "Conclusao", border=1, fill=
+            pdf.cell(w_data, 8, "Conclusao", border=1, fill=)
         
