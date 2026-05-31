@@ -31,8 +31,8 @@ if "dados_estrategicos" not in st.session_state:
         }
     ])
 
-# Força a limpeza absoluta de nulos
-st.session_state.dados_estrategicos = st.session_state.dados_estrategicos.fillna("").astype(str)
+# Força a limpeza e tipagem estrita no estado da sessão
+st.session_state.dados_estrategicos = st.session_state.dados_estrategicos.fillna("")
 st.session_state.dados_estrategicos["G"] = pd.to_numeric(st.session_state.dados_estrategicos["G"], errors='coerce').fillna(3).astype(int)
 st.session_state.dados_estrategicos["U"] = pd.to_numeric(st.session_state.dados_estrategicos["U"], errors='coerce').fillna(3).astype(int)
 st.session_state.dados_estrategicos["T"] = pd.to_numeric(st.session_state.dados_estrategicos["T"], errors='coerce').fillna(3).astype(int)
@@ -101,23 +101,29 @@ class PDFExecutivo(FPDF):
         self.set_x(240)
         self.cell(40, 5, f"Página {self.page_no()}", align="R")
 
-# 5. Renderização do Painel Web (Identação Alinhada)
+# 5. Renderização do Painel Web (Otimizado contra Conversão de Tipos Nulos)
 l_col1, l_col2 = st.columns([6, 4])
 
 with l_col1:
     st.subheader("📋 Painel de Governança e Prazos")
-    df_ed = df.copy().fillna("")
+    
+    # BLINDAGEM MÁSTER: Converte todas as colunas textuais para o tipo string estrito do Pandas
+    df_ed = df.copy()
+    colunas_texto = ["Tarefa", "Início", "Conclusão", "Aprovador (A)", "Responsável (R)", "Consultados (C)", "Informados (I)"]
+    for col in colunas_texto:
+        df_ed[col] = df_ed[col].astype(str).replace("None", "").replace("nan", "").str.strip().astype("string")
+        
     df_ed.insert(0, "Excluir", False)
     
     cfg_cols = {
         "Excluir": st.column_config.CheckboxColumn(required=True),
-        "Tarefa": st.column_config.TextColumn(width="large", default=""),
-        "Início": st.column_config.TextColumn(alignment="center", default=""),
-        "Conclusão": st.column_config.TextColumn(alignment="center", default=""),
-        "Aprovador (A)": st.column_config.TextColumn(default=""),
-        "Responsável (R)": st.column_config.TextColumn(default=""),
-        "Consultados (C)": st.column_config.TextColumn(default=""),
-        "Informados (I)": st.column_config.TextColumn(default="")
+        "Tarefa": st.column_config.TextColumn(width="large"),
+        "Início": st.column_config.TextColumn(alignment="center"),
+        "Conclusão": st.column_config.TextColumn(alignment="center"),
+        "Aprovador (A)": st.column_config.TextColumn(),
+        "Responsável (R)": st.column_config.TextColumn(),
+        "Consultados (C)": st.column_config.TextColumn(),
+        "Informados (I)": st.column_config.TextColumn()
     }
     
     ed_res = st.data_editor(df_ed, use_container_width=True, hide_index=True, disabled=ordem, column_config=cfg_cols)
@@ -255,3 +261,4 @@ if not df_par_grafico.empty:
     st.plotly_chart(f_gantt, use_container_width=True)
 else: 
     st.info("Adicione tarefas para visualizar o mapa do cronograma.")
+                
