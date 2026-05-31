@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ### Executar a Aplicação
 
 ```bash
-streamlit run app.py
+streamlit run gut.py
 ```
 
 A aplicação será aberta automaticamente no seu navegador (geralmente em `http://localhost:8501`).
@@ -76,7 +76,8 @@ Quanto maior o score, maior a prioridade.
 
 ```
 RD/
-├── app.py                 # Aplicação principal Streamlit
+├── gut.py                 # Aplicação Streamlit - Matriz GUT
+├── app.py                 # Sua aplicação principal
 ├── requirements.txt       # Dependências Python
 └── README.md             # Este arquivo
 ```
@@ -102,7 +103,7 @@ A aplicação vem com dados de simulação baseados em cenários comuns de admin
 1. Faça push do repositório para GitHub
 2. Acesse [Streamlit Cloud](https://streamlit.io/cloud)
 3. Conecte seu repositório GitHub
-4. Selecione o branch e o arquivo `app.py`
+4. Selecione o branch e o arquivo `gut.py`
 5. Deploy automático!
 
 ### Outros Serviços
