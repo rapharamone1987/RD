@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import io
-import os
 from datetime import datetime, timedelta
 from fpdf import FPDF
 
@@ -94,7 +93,7 @@ df["Conclusão"] = pd.to_datetime(df["Conclusão"]).dt.strftime("%d/%m/%Y")
 ordem_colunas = ["Problema", "G", "U", "T", "Score", "Início", "Conclusão", "Aprovador (A)", "Responsável (R)", "Consultados (C)", "Informados (I)"]
 df = df[ordem_colunas]
 
-# 5. Construção dos Gráficos que vão para o Ecrã e para o PDF
+# 5. Construção do Gráfico Interativo para o Ecrã
 if not df.empty:
     df_timeline = df_para_grafico.copy()
     df_timeline["Início"] = pd.to_datetime(df_timeline["Início"])
@@ -131,12 +130,13 @@ with layout_col1:
         st.rerun()
 
     # =========================================================
-    # BOTÕES DE EXPORTAÇÃO (EXCEL + PDF COM GRÁFICO DE GANTT)
+    # BOTÕES DE EXPORTAÇÃO SEGUROS PARA MOBILE (EXCEL + PDF)
     # =========================================================
     if not df.empty:
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
+            # Exportação de Planilha Excel (.xlsx)
             buffer_xlsx = io.BytesIO()
             with pd.ExcelWriter(buffer_xlsx, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False, sheet_name='Plano de Trabalho')
@@ -152,83 +152,113 @@ with layout_col1:
             )
             
         with col_btn2:
-            with st.spinner("A processar e a incluir o gráfico no PDF..."):
-                try:
-                    # 1. Converter o gráfico de Gantt numa imagem estática na memória RAM
-                    # É necessário ter a biblioteca 'kaleido' instalada para isto funcionar
-                    img_bytes = fig_gantt.to_image(format="png", width=1000, height=400, scale=2)
-                    
-                    # 2. Construir o PDF Avançado
-                    pdf = FPDF(orientation="L", unit="mm", format="A4")
-                    
-                    # --- PÁGINA 1: TABELA DE GOVERNAÇÃO ---
-                    pdf.add_page()
-                    pdf.set_font("Arial", "B", 16)
-                    pdf.set_text_color(27, 94, 32)
-                    pdf.cell(0, 10, "Relatorio Executivo: Matriz GUT + RACI + Cronograma", ln=True, align="C")
-                    pdf.set_font("Arial", "", 10)
-                    pdf.set_text_color(100, 100, 100)
-                    pdf.cell(0, 6, f"Gerado em: {datetime.today().strftime('%d/%m/%Y')}", ln=True, align="C")
-                    pdf.ln(5)
-                    
-                    # Cabeçalhos da Tabela
-                    pdf.set_fill_color(27, 94, 32)
-                    pdf.set_text_color(255, 255, 255)
-                    pdf.set_font("Arial", "B", 9)
-                    
-                    w_prob, w_g, w_u, w_t, w_score, w_data, w_raci = 75, 8, 8, 8, 13, 23, 29
-                    pdf.cell(w_prob, 8, "Problema / Gargalo", border=1, fill=True)
-                    pdf.cell(w_g, 8, "G", border=1, fill=True, align="C")
-                    pdf.cell(w_u, 8, "U", border=1, fill=True, align="C")
-                    pdf.cell(w_t, 8, "T", border=1, fill=True, align="C")
-                    pdf.cell(w_score, 8, "Score", border=1, fill=True, align="C")
-                    pdf.cell(w_data, 8, "Inicio", border=1, fill=True, align="C")
-                    pdf.cell(w_data, 8, "Conclusao", border=1, fill=True, align="C")
-                    pdf.cell(w_raci, 8, "Aprovador (A)", border=1, fill=True)
-                    pdf.cell(w_raci, 8, "Responsavel (R)", border=1, fill=True)
-                    pdf.cell(w_raci, 8, "Consultado (C)", border=1, fill=True)
-                    pdf.cell(w_raci, 8, "Informado (I)", border=1, fill=True, ln=True)
-                    
-                    # Linhas da Tabela
+            # Geração de PDF Ultra-Leve (Desenho Nativo, sem dependências de imagem)
+            pdf = FPDF(orientation="L", unit="mm", format="A4")
+            pdf.add_page()
+            
+            # Título do PDF
+            pdf.set_font("Arial", "B", 16)
+            pdf.set_text_color(27, 94, 32)
+            pdf.cell(0, 10, "Relatorio Executivo: Matriz GUT + RACI + Cronograma", ln=True, align="C")
+            pdf.set_font("Arial", "", 10)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(0, 6, f"Gerado em: {datetime.today().strftime('%d/%m/%Y')}", ln=True, align="C")
+            pdf.ln(5)
+            
+            # Cabeçalho da Tabela
+            pdf.set_fill_color(27, 94, 32)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "B", 9)
+            
+            w_prob, w_g, w_u, w_t, w_score, w_data, w_raci = 75, 8, 8, 8, 13, 23, 29
+            pdf.cell(w_prob, 8, "Problema / Gargalo", border=1, fill=True)
+            pdf.cell(w_g, 8, "G", border=1, fill=True, align="C")
+            pdf.cell(w_u, 8, "U", border=1, fill=True, align="C")
+            pdf.cell(w_t, 8, "T", border=1, fill=True, align="C")
+            pdf.cell(w_score, 8, "Score", border=1, fill=True, align="C")
+            pdf.cell(w_data, 8, "Inicio", border=1, fill=True, align="C")
+            pdf.cell(w_data, 8, "Conclusao", border=1, fill=True, align="C")
+            pdf.cell(w_raci, 8, "Aprovador (A)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Responsavel (R)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Consultado (C)", border=1, fill=True)
+            pdf.cell(w_raci, 8, "Informado (I)", border=1, fill=True, ln=True)
+            
+            # Linhas da Tabela
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", "", 8.5)
+            for idx, row in df.iterrows():
+                bg = idx % 2 == 1
+                pdf.set_fill_color(244, 250, 245) if bg else pdf.set_fill_color(255, 255, 255)
+                prob_resumido = row['Problema'][:40] + "..." if len(row['Problema']) > 40 else row['Problema']
+                
+                pdf.cell(w_prob, 7, prob_resumido, border=1, fill=bg)
+                pdf.cell(w_g, 7, str(row['G']), border=1, fill=bg, align="C")
+                pdf.cell(w_u, 7, str(row['U']), border=1, fill=bg, align="C")
+                pdf.cell(w_t, 7, str(row['T']), border=1, fill=bg, align="C")
+                
+                # Destaque de cor no texto do Score para sinalizar criticidade
+                if int(row['Score']) >= 60:
+                    pdf.set_text_color(198, 40, 40) # Vermelho
+                    pdf.set_font("Arial", "B", 8.5)
+                else:
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_font("Arial", "", 8.5)
-                    for idx, row in df.iterrows():
-                        bg = idx % 2 == 1
-                        pdf.set_fill_color(244, 250, 245) if bg else pdf.set_fill_color(255, 255, 255)
-                        prob_resumido = row['Problema'][:40] + "..." if len(row['Problema']) > 40 else row['Problema']
-                        
-                        pdf.cell(w_prob, 7, prob_resumido, border=1, fill=bg)
-                        pdf.cell(w_g, 7, str(row['G']), border=1, fill=bg, align="C")
-                        pdf.cell(w_u, 7, str(row['U']), border=1, fill=bg, align="C")
-                        pdf.cell(w_t, 7, str(row['T']), border=1, fill=bg, align="C")
-                        pdf.cell(w_score, 7, str(row['Score']), border=1, fill=bg, align="C")
-                        pdf.cell(w_data, 7, row['Início'], border=1, fill=bg, align="C")
-                        pdf.cell(w_data, 7, row['Conclusão'], border=1, fill=bg, align="C")
-                        pdf.cell(w_raci, 7, str(row['Aprovador (A)'])[:15], border=1, fill=bg)
-                        pdf.cell(w_raci, 7, str(row['Responsável (R)'])[:15], border=1, fill=bg)
-                        pdf.cell(w_raci, 7, str(row['Consultados (C)'])[:15], border=1, fill=bg)
-                        pdf.cell(w_raci, 7, str(row['Informados (I)'])[:15], border=1, fill=bg, ln=True)
                     
-                    # --- PÁGINA 2: CRONOGRAMA DE GANTT ---
-                    pdf.add_page()
-                    pdf.set_font("Arial", "B", 14)
-                    pdf.set_text_color(27, 94, 32)
-                    pdf.cell(0, 10, "Cronograma Visual de Execucao (Mapa de Gantt)", ln=True, align="L")
-                    pdf.ln(5)
-                    
-                    # Inserir a imagem do gráfico armazenada temporariamente na memória RAM
-                    # Parâmetros: imagem em bytes, x, y, largura (260mm ocupa quase a folha inteira)
-                    pdf.image(io.BytesIO(img_bytes), x=15, y=30, w=265)
-                    
-                    pdf_output = pdf.output()
-                    
-                    st.download_button(
-                        label="📕 Exportar Relatório PDF + Gantt (.pdf)",
-                        data=bytes(pdf_output), file_name="relatorio_priorizacao_com_gantt.pdf",
-                        mime="application/pdf", use_container_width=True
-                    )
-                except Exception as e:
-                    st.error(f"Instale a biblioteca 'kaleido' para exportar o gráfico para o PDF. Erro técnico: {e}")
+                pdf.cell(w_score, 7, str(row['Score']), border=1, fill=bg, align="C")
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", "", 8.5)
+                
+                pdf.cell(w_data, 7, row['Início'], border=1, fill=bg, align="C")
+                pdf.cell(w_data, 7, row['Conclusão'], border=1, fill=bg, align="C")
+                pdf.cell(w_raci, 7, str(row['Aprovador (A)'])[:15], border=1, fill=bg)
+                pdf.cell(w_raci, 7, str(row['Responsável (R)'])[:15], border=1, fill=bg)
+                pdf.cell(w_raci, 7, str(row['Consultados (C)'])[:15], border=1, fill=bg)
+                pdf.cell(w_raci, 7, str(row['Informados (I)'])[:15], border=1, fill=bg, ln=True)
+            
+            # --- NOVO CRONOGRAMA NATIVO (MINI-GANTT EM VETOR) ---
+            pdf.ln(10)
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_text_color(27, 94, 32)
+            pdf.cell(0, 8, "Visualizacao Linear de Prazos (Cronograma)", ln=True)
+            pdf.ln(2)
+            
+            # Desenha um mini-cronograma horizontal simplificado usando retângulos nativos do PDF
+            pdf.set_font("Arial", "", 8)
+            pdf.set_text_color(50, 50, 50)
+            
+            for idx, row in df.iterrows():
+                # Nome do problema resumido à esquerda
+                prob_gantt = row['Problema'][:30] + "..." if len(row['Problema']) > 30 else row['Problema']
+                pdf.cell(55, 6, prob_gantt, ln=False)
+                
+                # Desenhar a barra do prazo baseada no Score
+                # Define a cor da barra de prazo (Verde claro, Médio ou Escuro)
+                score_val = int(row['Score'])
+                if score_val >= 60:
+                    pdf.set_fill_color(27, 94, 32)   # Verde Escuro (Crítico)
+                elif score_val >= 30:
+                    pdf.set_fill_color(44, 160, 90)  # Verde Médio
+                else:
+                    pdf.set_fill_color(161, 219, 178) # Verde Claro
+                
+                # Desenha o retângulo geométrico (x, y, largura, altura)
+                # A largura varia ligeiramente com base no Score para simular peso visual no papel
+                largura_barra = max(20, min(150, score_val * 1.5))
+                
+                current_y = pdf.get_y() + 1
+                pdf.rect(70, current_y, largura_barra, 4, "F")
+                
+                # Exibe as datas de prazo logo após a barra geométrica
+                pdf.set_x(75 + largura_barra)
+                pdf.cell(0, 6, f"({row['Início']} a {row['Conclusão']}) - Responsável: {row['Responsável (R)']}", ln=True)
+                pdf.ln(1)
+            
+            pdf_output = pdf.output()
+            st.download_button(
+                label="📕 Exportar Relatório PDF (.pdf)", data=bytes(pdf_output),
+                file_name="relatorio_priorizacao_mobile.pdf", mime="application/pdf",
+                use_container_width=True
+            )
 
 with layout_col2:
     st.subheader("📊 Volume de Criticidade")
@@ -242,7 +272,7 @@ with layout_col2:
     else:
         st.info("Nenhum dado registado.")
 
-# 6. Cronograma Interativo no Ecrã (Gantt)
+# 6. Cronograma Interativo no Ecrã (Gantt para Computador/Tablet)
 st.markdown("---")
 st.subheader("📅 Cronograma Interativo de Execução (Linha do Tempo)")
 if not df.empty:
